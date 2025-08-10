@@ -11,6 +11,37 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Ensure unzip installed
+        run: sudo apt-get update && sudo apt-get install -y unzip
+
+      - name: Detect or unzip project dir
+        run: |
+          set -e
+          echo "Buscando carpeta del proyecto..."
+          if [ -d "TamagotchiLaMichoacana" ]; then
+            echo "PROJECT_DIR=TamagotchiLaMichoacana" >> $GITHUB_ENV
+          elif [ -d "TamagotchiLaMichoacana_fixed" ]; then
+            echo "PROJECT_DIR=TamagotchiLaMichoacana_fixed" >> $GITHUB_ENV
+          else
+            echo "No hay carpeta. Intentando descomprimir ZIP..."
+            # Descomprime cualquier ZIP en la raíz (ajusta si quieres un nombre específico)
+            ZIP_FILE="$(ls -1 *.zip 2>/dev/null | head -n1 || true)"
+            if [ -z "$ZIP_FILE" ]; then
+              echo "No encontré ningún ZIP en el repo."; exit 1
+            fi
+            echo "Descomprimiendo $ZIP_FILE ..."
+            unzip -o "$ZIP_FILE"
+            # Detectar nombre de carpeta después de descomprimir
+            if [ -d "TamagotchiLaMichoacana" ]; then
+              echo "PROJECT_DIR=TamagotchiLaMichoacana" >> $GITHUB_ENV
+            elif [ -d "TamagotchiLaMichoacana_fixed" ]; then
+              echo "PROJECT_DIR=TamagotchiLaMichoacana_fixed" >> $GITHUB_ENV
+            else
+              echo "No encontré carpeta de proyecto válida tras descomprimir."; exit 1
+            fi
+          fi
+          echo "Proyecto detectado en: ${PROJECT_DIR:-no-detectado}"
+
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
@@ -23,12 +54,11 @@ jobs:
           api-level: 34
           build-tools: 34.0.0
 
-      # Compila sin necesitar gradlew en el repo
       - name: Build Debug APK (Gradle)
         uses: gradle/gradle-build-action@v3
         with:
           gradle-version: 8.7
-          build-root-directory: TamagotchiLaMichoacana
+          build-root-directory: ${{ env.PROJECT_DIR }}
           arguments: |
             -Dorg.gradle.daemon=false
             -Dorg.gradle.vfs.watch=false
@@ -39,5 +69,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: app-debug
-          path: TamagotchiLaMichoacana/app/build/outputs/apk/debug/*.apk
+          path: ${{ env.PROJECT_DIR }}/app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
