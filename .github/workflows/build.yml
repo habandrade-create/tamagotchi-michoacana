@@ -1,0 +1,33 @@
+name: Build Android APK
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Descargar repositorio
+      uses: actions/checkout@v3
+
+    - name: Configurar JDK
+      uses: actions/setup-java@v3
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+
+    - name: Configurar SDK de Android
+      uses: android-actions/setup-android@v2
+
+    - name: Compilar APK
+      run: |
+        cd TamagotchiLaMichoacana
+        chmod +x gradlew
+        ./gradlew assembleDebug
+
+    - name: Subir APK como artefacto
+      uses: actions/upload-artifact@v3
+      with:
+        name: tamagotchi-michoacana-apk
+        path: TamagotchiLaMichoacana/app/build/outputs/apk/debug/app-debug.apk
